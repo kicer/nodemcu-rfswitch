@@ -1,4 +1,4 @@
-# rfswitch lua implement
+# nodemcu-rfswitch
 rfswitch pure-lua module for NodeMCU.
 
 ## Usage
