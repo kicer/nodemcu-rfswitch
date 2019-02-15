@@ -7,8 +7,8 @@ Transmit/Receive data using the radio module.
 #### Syntax
 
 ``` Lua
-rfswitch.send(protocol_id, pulse_length, repeat_count, pin, value, length, callback)
-rfswitch.recv(pin, callback)
+rfswitch.send(protocol_id, pulse_length, repeat_count, pin, value, length, tx_cb)
+rfswitch.recv(pin, rx_cb)
 ```
 
 #### Parameters
@@ -18,9 +18,10 @@ rfswitch.recv(pin, callback)
 * `pin` I/O index of pin, example 6 is for GPIO12
 * `value` positive integer value, this is the primary data which will be sent
 * `length` bit length of value, if value length is 3 bytes, then length is 24
-* `callback` to be invoked when send finished or receive a data
+* `tx_cb()` invoked when send finished
+* `rx_cb(protocol_id, value, length)` invoked when receive a data
 
-## Docs
+## Documentation
 https://github.com/sui77/rc-switch
 
 https://github.com/nodemcu/nodemcu-firmware/blob/master/app/modules/rfswitch.c
