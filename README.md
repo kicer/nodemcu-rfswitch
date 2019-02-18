@@ -21,6 +21,9 @@ rfswitch.recv(pin, rx_cb)
 * `tx_cb()` invoked when send finished
 * `rx_cb(protocol_id, value, length)` invoked when receive a data
 
+## Issues
+GPIO外部中断任务在NodeMCU处于高负载模式下会被跳过，导致接收到的升降沿错误，无法正确解析数据。连续按下对应按键会增加接收到数据的正确性。实际产品不建议使用此方案解析RF数据。
+
 ## Documentation
 https://github.com/sui77/rc-switch
 

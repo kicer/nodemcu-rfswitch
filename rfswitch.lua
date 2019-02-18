@@ -1,5 +1,7 @@
--- https://github.com/sui77/rc-switch/blob/master/RCSwitch.cpp
+-- rfswitch.recv(pin, callback(protocol_id, value, length))
+-- rfswitch.send(protocol_id, pulse_length, repeat_count, pin, value, length, callback())
 
+-- https://github.com/sui77/rc-switch/blob/master/RCSwitch.cpp
 local rfswitch = {}
 
 local Protocol = {
@@ -35,34 +37,46 @@ rfswitch.recv = function(pin, callback)
   local pulse1 = 0
   local changeCount,repeatCount = 0,0
   local timings = {0}
+  local gpio = gpio
+  local diff,max,int = math.abs,math.max,math.floor
+  local bset,blshift = bit.set,bit.lshift
 
-  local function pincb(level, pulse2)
+  local function pincb(level, pulse2, eventcount)
+    if eventcount > 1 then
+      changeCount = 0
+      if repeatCount > 1 then
+        repeatCount=repeatCount-1
+      end
+      return
+    end
     local duration = pulse2 - pulse1
     if duration > 4300 then -- RCSwitch::nSeparationLimit
-      if math.abs(duration-timings[1]) < 200 then
+      if diff(duration-timings[1])<200 and (changeCount==50 or changeCount==66) then
         repeatCount = repeatCount + 1
         -- use 2nd as valid data
-        if repeatCount == 3 then
+        if repeatCount == 2 then
           for i=1,#Protocol do
             local value,err = 0,false
             local pro = Protocol[i]
-            local delay = timings[1] / math.max(pro[2][1],pro[2][2])
+            local delay = timings[1] / max(pro[2][1],pro[2][2])
             local delayTolerance = delay * 60 / 100 -- RCSwitch::nReceiveTolerance
             local firstDataTiming = pro[5] and 3 or 2
             for k=firstDataTiming,changeCount-1,2 do
-              value = bit.lshift(value, 1)
-              if math.abs(timings[k]-delay*pro[3][1]) < delayTolerance and
-                math.abs(timings[k+1]-delay*pro[3][2]) < delayTolerance then
-              elseif math.abs(timings[k]-delay*pro[4][1]) < delayTolerance and
-                math.abs(timings[k+1]-delay*pro[4][2]) < delayTolerance then
-                value = bit.set(value, 0)
+              value = blshift(value, 1)
+              if diff(timings[k]-delay*pro[3][1]) < delayTolerance and
+                diff(timings[k+1]-delay*pro[3][2]) < delayTolerance then
+              elseif diff(timings[k]-delay*pro[4][1]) < delayTolerance and
+                diff(timings[k+1]-delay*pro[4][2]) < delayTolerance then
+                value = bset(value, 0)
               else
+                -- print(i,changeCount,k,timings[k],delay,table.concat(timings,','))
                 err = true
                 break
               end
             end
             if not err and changeCount > 8 then
-              callback(i, value, math.floor((changeCount-1)/2))
+              -- print(i,changeCount,delay,table.concat(timings,','))
+              callback(i, value, int((changeCount-1)/2))
               break
             end
           end
@@ -71,19 +85,18 @@ rfswitch.recv = function(pin, callback)
       end
       changeCount = 0
     end
-    if changeCount>67 then -- RCSWITCH_MAX_CHANGES
+    if changeCount>67 then -- RCSWITCH_MAX_CHANGES(24/32bit)
       changeCount = 0
       repeatCount = 0
     end
     changeCount = changeCount + 1
     timings[changeCount] = duration
     pulse1 = pulse2
-    gpio.trig(pin, level == gpio.HIGH  and "down" or "up")
   end
 
   if callback then
     gpio.mode(pin, gpio.INT)
-    gpio.trig(pin, "down", pincb)
+    gpio.trig(pin, "both", pincb)
   else
     gpio.mode(pin, gpio.INPUT)
     gpio.trig(pin, "none")
